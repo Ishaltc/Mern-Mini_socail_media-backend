@@ -30,7 +30,7 @@ mongoose
 
 
 let PORT = process.env.PORT || 6600;
-app.listen(process.env.PORT, () => {
+app.listen(6600, () => {
   console.log(`server listening on ${PORT}`);
 });
 
