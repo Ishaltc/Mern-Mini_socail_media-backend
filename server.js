@@ -7,7 +7,14 @@ const bodyParser = require("body-parser");
 const fileUpload = require("express-fileupload");
 
 const app = express();
-app.use(cors());
+// app.use(cors());
+app.use(
+  cors({
+    origin: ["https://people-media.netlify.app"],
+    credentials: true,
+    origin: true,
+  })
+);
 dotenv.config();
 app.use(express.json());
 app.use(
