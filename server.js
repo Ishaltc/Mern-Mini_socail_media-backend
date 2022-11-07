@@ -10,7 +10,7 @@ const app = express();
 // app.use(cors());
 app.use(
   cors({
-    origin: ["https://people-media.netlify.app"],
+    origin: [ 'http://localhost:6600', 'http://localhost:3000' ],
     credentials: true,
     origin: true,
   })
