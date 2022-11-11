@@ -4,9 +4,12 @@ const User = require("../models/UserModel");
 const { generateToken } = require("../helpers/token");
 const { request } = require("express");
 const mongoose = require("mongoose");
+const generateCode = require("./helpers/generateCode");
+const Code = require("../models/Code");
+const mailConnection = require("./helpers/mailerConnection");
+
 //register
 exports.register = async (req, res) => {
-  console.log(req.body);
   try {
     const { name, email, password, place, city, state, country } = req.body;
     if (
@@ -71,7 +74,6 @@ exports.register = async (req, res) => {
 //login
 exports.login = async (req, res) => {
   try {
-    console.log(req.body);
     const { email, password } = req.body;
 
     if (email == "" || password == "") {
@@ -113,7 +115,6 @@ exports.updateProfilePicture = async (req, res) => {
     const { url } = req.body;
     await User.findByIdAndUpdate(req.user.id, { picture: url });
     res.json(url);
-    console.log(url);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -121,9 +122,7 @@ exports.updateProfilePicture = async (req, res) => {
 
 //addFriend
 exports.addFriend = async (req, res) => {
-  
   try {
-    
     if (req.user.id !== req.params.id) {
       const sender = await User.findById(req.user.id);
       const receiver = await User.findById(req.params.id);
@@ -261,17 +260,10 @@ exports.getFriendsPageInfos = async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
       .select("friends ")
-      .populate("friends", "name email place city state country picture")
-
-    //checking if any other users have current user request
-    // const sentRequests = await User.find({
-    //   requests: mongoose.Types.ObjectId(req.user.id),
-    // }).select("name email country place city state picture");
+      .populate("friends", "name email place city state country picture");
 
     res.json({
       friends: user.friends,
-      // requests: user.requests,
-      // sentRequests,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -293,10 +285,9 @@ exports.getAllUsers = async (req, res) => {
 exports.getProfile = async (req, res) => {
   try {
     const { name } = req.params;
-   
-    
+
     const user = await User.findById(req.user.id);
-    const profile = await User.findOne({ name }).select("-password");
+    const profile = await User.findOne({ name }).select("");
     const friendShip = {
       friends: false,
       requestSent: false,
@@ -320,6 +311,101 @@ exports.getProfile = async (req, res) => {
 
     await profile.populate("friends", "name email place picture");
     res.json({ ...profile.toObject(), friendShip: friendShip });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+//finding user for reset and sending code to nodemailer
+exports.findUser = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (email == "") {
+      return res.status(400).json({ message: "Please enter your email" });
+    }
+    const code = generateCode(5);
+    const user = await User.findOne({ email }).populate("");
+
+    if (!user) {
+      return res.status(400).json({ message: "Account does not exist" });
+    }
+    await Code.findOneAndRemove({ user: user._id });
+
+    const savedCode = await new Code({
+      code,
+      user: user._id,
+    }).save();
+
+    //sending email
+    const subject = "This is your reset password code";
+    await mailConnection.doEmail(email, subject, code);
+    return res.status(200).json({
+      message: "Email reset code has been sent to your account",
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+//confirming password
+
+exports.confirmPassword = async (req, res) => {
+  try {
+    const { password, rePassword } = req.body;
+    console.log(req.body);
+
+    if (password == "" || rePassword == "") {
+      return res.status(400).json({ message: "Please fill the form" });
+    }
+    if (password !== rePassword) {
+      return res.status(400).json({ message: "Your password is not matching" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+//validating code
+exports.validatingCode = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    const user = await User.findOne({ email });
+    const Dbcode = await Code.findOne({ user: user._id });
+    if (Dbcode.code !== code) {
+      return res.status(400).json({
+        message: "Invalid verification code",
+      });
+    }
+    return res.status(200).json({ message: "Okay" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+//newPassword
+exports.newPassword = async (req, res) => {
+  try {
+    const { password, rePassword, email } = req.body;
+
+    if (password == "" || rePassword == "") {
+      return res.status(400).json({ message: "Please fill the form" });
+    }
+
+    if (password !== rePassword) {
+      return res.status(400).json({ message: "Password is not matching" });
+    }
+    const cryptedPassword = await bcrypt.hash(password, 12);
+    await User.findOneAndUpdate(
+      { email },
+      {
+        password: cryptedPassword,
+      }
+    );
+    res
+      .status(200)
+      .send({ message: "Password has been updated successfully." });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -11,6 +11,10 @@ const {
   getFriendsPageInfos,
   getAllUsers,
   getProfile,
+  findUser,
+  confirmPassword,
+  newPassword,
+  validatingCode
 } = require("../controllers/user");
 const { authUser } = require("../middleware/auth");
 const router = express.Router();
@@ -26,4 +30,8 @@ router.put("/deleteRequest/:id", authUser, deleteRequest);
 router.get("/getFriendsPageInfos", authUser, getFriendsPageInfos);
 router.get("/getAllUsers", authUser, getAllUsers);
 router.get("/getProfile/:name", authUser, getProfile)
+router.post("/findUser",findUser)
+router.post("/confirmPassword", confirmPassword)
+router.post("/newPassword",newPassword)
+router.post("/validatingCode",validatingCode)
 module.exports = router;
